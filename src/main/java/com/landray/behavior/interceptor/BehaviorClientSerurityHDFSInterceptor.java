@@ -18,17 +18,15 @@
 
 package com.landray.behavior.interceptor;
 
-import java.util.List;
-
+import com.landray.behavior.security.BehaviorSecurityClient;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.interceptor.HostInterceptor;
 import org.apache.flume.interceptor.Interceptor;
-import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.landray.behavior.security.BehaviorSecurityClient;
+import java.util.List;
 
 /**
  * Interceptor class that appends a static, pre-configured header to all events.
@@ -83,14 +81,21 @@ public class BehaviorClientSerurityHDFSInterceptor implements Interceptor {
         String id = (String)event.getHeaders().get("id");
         String fileName = (String)event.getHeaders().get("basename");
         try {
-            //内容加上标记
-            JSONObject jObj = new JSONObject();
-            jObj.put("id",id);
-            jObj.put("fileNmae",fileName);
-            jObj.put("value", new String(event.getBody()));
+            //
+            StringBuffer buffer = new StringBuffer();
+            buffer.append("{\"id\":");
+            buffer.append("\""+id+"\",");
+            buffer.append("\"fileName\":");
+            buffer.append("\""+fileName + "\",");
+            buffer.append("\"value\":");
+            if(fileName.indexOf("hotspot")>-1){
+                buffer.append(new String(event.getBody()) + "}");
+            }else{
+                buffer.append("\""+new String(event.getBody()) + "\"}");
+            }
 
-            byte[] securityBody = BehaviorSecurityClient.encode(jObj
-                    .toString().getBytes(), key);
+            byte[] securityBody = BehaviorSecurityClient.encode(buffer
+                    .toString().replaceAll("\\r","").replaceAll("\\n","").getBytes(), key);
             logger.debug("加密之后的内容为:" + new String(securityBody));
             event.setBody(securityBody);
         } catch (Exception e) {
